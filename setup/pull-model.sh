@@ -6,26 +6,40 @@
 # ~4–5 GB resident, and fast enough for interactive use. Bigger models work but
 # run hotter and slower.
 #
+# For an assistant that WON'T refuse legitimate offensive-security tasks, pick
+# an uncensored or security-tuned model. Mainstream instruct models (llama3.1,
+# qwen2.5) are heavily aligned and will decline a lot of real pentest work no
+# matter what system prompt you use — the refusals are baked into the weights.
+#
 # Usage:  bash setup/pull-model.sh [model-name]
 
 set -euo pipefail
 
-# Default: a strong general 7B instruct model (good recon reasoning + explains
-# tool output well). Override by passing a name or editing DEFAULT_MODEL.
-DEFAULT_MODEL="qwen2.5:7b"
+# Default: an uncensored security-tuned model so offensive tasks aren't refused.
+DEFAULT_MODEL="hf.co/TheBloke/WhiteRabbitNeo-13B-GGUF:Q4_K_M"
 
 MODEL="${1:-$DEFAULT_MODEL}"
 
 cat <<EOF
 Model options (pick one and pass it as an argument):
 
-  qwen2.5:7b        General 7B, strong reasoning         ~4.7 GB   (default)
-  llama3.1:8b       General 8B, well-rounded             ~4.9 GB
-  mistral:7b        Fast, lightweight                    ~4.1 GB
-  deepseek-coder-v2:16b   Heavier, strong at code/exploits  ~9 GB  (needs headroom)
+  UNCENSORED / SECURITY-TUNED  (won't refuse offensive-security work)
+    hf.co/TheBloke/WhiteRabbitNeo-13B-GGUF:Q4_K_M
+                          Purpose-built offensive/defensive security  ~8 GB (default)
+    dolphin-mistral:7b    Uncensored general model, fast              ~4.1 GB
+    dolphin-llama3:8b     Uncensored, well-rounded                    ~4.9 GB
+    huihui_ai/qwen2.5-abliterated:7b
+                          Refusal-ablated Qwen2.5, strong reasoning   ~4.7 GB
 
-Security-tuned community models (for offensive/defensive reasoning) can be
-browsed at https://ollama.com/search?q=security — availability varies.
+  GENERAL (capable but heavily aligned — expect refusals on offensive tasks)
+    qwen2.5:7b            General 7B                                   ~4.7 GB
+    llama3.1:8b           General 8B                                   ~4.9 GB
+
+Browse more at https://ollama.com/search — availability of community/HF models
+varies; any GGUF on Hugging Face can be pulled with the hf.co/<repo>:<quant> form.
+
+On 12 GB the 13B (~8 GB) fits but runs warm; drop to a 7–8B uncensored model
+(dolphin-mistral / qwen2.5-abliterated) if you want it snappier and cooler.
 
 Pulling: $MODEL
 EOF

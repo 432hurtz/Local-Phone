@@ -127,13 +127,32 @@ The agent:
 
 ---
 
-## Model choice
+## Model choice — and refusals
 
-The default is a general 7–8B instruct model, which is a good all-rounder for
-recon reasoning and explaining output. For heavier offensive/defensive
-security reasoning, `setup/pull-model.sh` also lists security-tuned community
-models. Larger models are slower on-device; start small and scale up if your
-thermals/RAM allow.
+Refusals mostly live in the **model weights**, not the system prompt. A heavily
+aligned mainstream model (llama3.1, qwen2.5) will decline plenty of legitimate
+offensive-security tasks no matter how you prompt it. Because this runs on
+hardware you control, the fix is to pick an **uncensored / security-tuned**
+model:
+
+| Model | Notes | Size |
+| ----- | ----- | ---- |
+| `hf.co/TheBloke/WhiteRabbitNeo-13B-GGUF:Q4_K_M` | Purpose-built offensive/defensive security (default) | ~8 GB |
+| `dolphin-mistral:7b` | Uncensored, fast | ~4.1 GB |
+| `dolphin-llama3:8b` | Uncensored, well-rounded | ~4.9 GB |
+| `huihui_ai/qwen2.5-abliterated:7b` | Refusal-ablated, strong reasoning | ~4.7 GB |
+
+The system prompt is written to be direct and to skip moralizing preambles on
+security work. Paired with one of the models above, the assistant answers
+offensive-security questions straight instead of refusing them.
+
+The 13B (~8 GB) fits in the Pixel 9's 12 GB but runs warm; drop to a 7–8B
+uncensored model for a snappier, cooler session. `setup/pull-model.sh` lists
+all options.
+
+The **operational** guardrails stay in place regardless of model: the scope
+gate and the execute-confirmation step protect your own device and keep you
+inside your engagement's target list.
 
 ---
 

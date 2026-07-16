@@ -4,7 +4,10 @@
 backend: ollama
 
 # Model to use. Must match a model you've pulled (setup/pull-model.sh).
-model: qwen2.5:7b
+# Default is an uncensored security-tuned model so offensive-security tasks
+# aren't refused. Swap for a lighter uncensored 7B (e.g. dolphin-mistral:7b)
+# if you want it snappier on-device.
+model: hf.co/TheBloke/WhiteRabbitNeo-13B-GGUF:Q4_K_M
 
 # Local Ollama runtime.
 ollama:
