@@ -76,13 +76,13 @@ cat <<'EOF'
 [+] Base install complete.
 
 Next:
-  1) Pull a model:                    bash setup/pull-model.sh
-  2) Edit your engagement scope:      $EDITOR scope.yaml
-  3) Launch everything:               bash run.sh
+  1) Edit your engagement scope:      $EDITOR scope.yaml
+  2) Launch everything with a model:  bash run.sh dolphin-mistral:7b
 
-  run.sh starts Ollama + Tor if they aren't already up, waits for both, then
-  starts the assistant. To run the pieces by hand instead:
-     ollama serve &   |   tor &   |   python main.py
+  run.sh starts Ollama + Tor if they aren't already up, pulls the model if you
+  don't have it yet, then starts the assistant with it. Omit the model to use
+  the one in config.yaml. To run the pieces by hand instead:
+     ollama serve &   |   tor &   |   python main.py --model <name>
 
 Notes:
   - Tor powers only the research/SEARCH channel (web/OSINT lookups) for privacy.

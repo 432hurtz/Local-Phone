@@ -2,13 +2,15 @@
 #
 # run.sh — one-command launcher.
 #
-# Brings up the two background services the assistant needs — Ollama (local
-# model runtime) and Tor (the research/SEARCH channel) — only if they aren't
-# already running, waits until each is ready, then starts the assistant.
+# Give it the model you want and it does the rest: starts Ollama and Tor if they
+# aren't already running, pulls the model if it isn't present yet, then launches
+# the assistant with that model.
 #
-# Any arguments are passed straight through to main.py, e.g.:
-#     bash run.sh --auto
-#     bash run.sh --model dolphin-mistral:7b
+#     bash run.sh dolphin-mistral:7b
+#     bash run.sh qwen2.5:7b --auto
+#     bash run.sh                       # no model => use the one in config.yaml
+#
+# The first bare word is the model. Anything else is passed through to main.py.
 
 set -euo pipefail
 
@@ -21,21 +23,25 @@ mkdir -p "$LOGDIR"
 say()  { printf '\033[1;32m[+]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[!]\033[0m %s\n' "$*"; }
 
-# --- readiness checks ----------------------------------------------------------
+# --- parse args: first non-flag token is the model ----------------------------
+MODEL=""
+if [ "$#" -gt 0 ] && [ "${1#-}" = "$1" ]; then
+  MODEL="$1"; shift
+fi
+# remaining "$@" is passed straight to main.py
+
+# --- readiness checks ---------------------------------------------------------
 ollama_up() { curl -fsS http://localhost:11434/api/tags >/dev/null 2>&1; }
 
-# True when the Tor SOCKS port is accepting connections.
 tor_up() {
   python3 - <<'PY'
 import socket, sys
-s = socket.socket()
-s.settimeout(2)
+s = socket.socket(); s.settimeout(2)
 sys.exit(0 if s.connect_ex(("127.0.0.1", 9050)) == 0 else 1)
 PY
 }
 
-# wait_until <check-fn> <timeout-seconds> <human-name>
-wait_until() {
+wait_until() {  # <check-fn> <timeout-seconds> <human-name>
   local fn="$1" timeout="$2" name="$3" i=0
   while ! "$fn"; do
     i=$((i + 1))
@@ -48,7 +54,7 @@ wait_until() {
   say "$name is ready."
 }
 
-# --- Ollama --------------------------------------------------------------------
+# --- Ollama (must be up before we can pull/list models) -----------------------
 if ollama_up; then
   say "Ollama already running."
 else
@@ -57,16 +63,23 @@ else
   wait_until ollama_up 30 "Ollama" || warn "Continuing; the model backend may be unavailable."
 fi
 
-# --- Tor (research channel) ----------------------------------------------------
+# --- ensure the requested model is present ------------------------------------
+if [ -n "$MODEL" ]; then
+  if ollama list 2>/dev/null | grep -q -- "$MODEL"; then
+    say "Model '$MODEL' already pulled."
+  else
+    say "Pulling model '$MODEL' (first time only)…"
+    ollama pull "$MODEL" || { warn "Failed to pull '$MODEL'."; exit 1; }
+  fi
+fi
+
+# --- Tor (research/SEARCH channel) --------------------------------------------
 if tor_up; then
   say "Tor already running."
 else
   say "Starting Tor (log: $LOGDIR/tor.log)…"
   nohup tor >"$LOGDIR/tor.log" 2>&1 &
   if wait_until tor_up 60 "Tor SOCKS proxy"; then
-    # SOCKS port is open; give circuits a moment to finish bootstrapping so the
-    # first search doesn't fail. Best-effort — the research channel is
-    # fail-closed anyway, so a not-yet-ready Tor just refuses rather than leaks.
     for _ in $(seq 1 30); do
       grep -q "Bootstrapped 100%" "$LOGDIR/tor.log" 2>/dev/null && { say "Tor bootstrapped."; break; }
       sleep 1
@@ -76,6 +89,10 @@ else
   fi
 fi
 
-# --- assistant -----------------------------------------------------------------
+# --- launch the assistant -----------------------------------------------------
 say "Launching assistant…"
-exec python3 main.py "$@"
+if [ -n "$MODEL" ]; then
+  exec python3 main.py --model "$MODEL" "$@"
+else
+  exec python3 main.py "$@"
+fi

@@ -58,17 +58,11 @@ leaving the device — good for field work, air-gapped labs, and privacy.
    bash setup/install.sh
    ```
 
-   The installer sets up Python, Ollama, the common recon toolchain, and the
-   assistant's Python dependencies.
+   The installer sets up Python, Ollama, Tor, the common recon toolchain, and
+   the assistant's Python dependencies. (The model is pulled for you on first
+   launch — see step 4.)
 
-3. Pull a model (defaults to a security-capable 7B; see
-   [`setup/pull-model.sh`](setup/pull-model.sh) for alternatives):
-
-   ```bash
-   bash setup/pull-model.sh
-   ```
-
-4. Configure your engagement:
+3. Configure your engagement:
 
    ```bash
    cp config.example.yaml config.yaml
@@ -76,17 +70,18 @@ leaving the device — good for field work, air-gapped labs, and privacy.
    $EDITOR scope.yaml     # add the hosts/CIDRs you are authorized to test
    ```
 
-5. Run it:
+4. Run it — one command, with the model you want:
 
    ```bash
-   bash run.sh            # starts Ollama + Tor if needed, then the assistant
+   bash run.sh dolphin-mistral:7b
    ```
 
-   `run.sh` is the one-command launcher: it brings up Ollama (model runtime)
-   and Tor (research channel) only if they aren't already running, waits until
-   each is ready, then starts the assistant. Arguments pass straight through
-   (`bash run.sh --auto`). To run pieces by hand instead, see
-   [Manual start](#manual-start) below.
+   `run.sh` is the whole start-up: it brings up Ollama and Tor if they aren't
+   already running, **pulls the model if you don't have it yet**, then launches
+   the assistant with it. The first word is the model; anything after passes
+   through to `main.py` (`bash run.sh qwen2.5:7b --auto`). Omit the model to use
+   the one in `config.yaml`. To run the pieces by hand, see
+   [Manual start](#manual-start).
 
 ---
 
