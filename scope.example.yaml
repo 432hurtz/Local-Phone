@@ -1,0 +1,15 @@
+# Engagement scope — the ONLY targets this assistant is authorized to test.
+# Copy to scope.yaml and replace with your authorized hosts before you start.
+#
+# Accepts, mixed freely:
+#   - single IPv4/IPv6 addresses      192.168.1.50
+#   - CIDR ranges                     10.10.10.0/24
+#   - hostnames / domains             lab.example.com   (matches subdomains too)
+#
+# A command touching anything NOT listed here triggers a scope warning and an
+# explicit "run anyway?" confirmation.
+
+targets:
+  - 127.0.0.1            # loopback / on-device testing
+  - 10.10.10.0/24        # example lab subnet — replace me
+  - lab.example.com      # example authorized host — replace me

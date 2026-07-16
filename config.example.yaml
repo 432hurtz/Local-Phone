@@ -1,0 +1,23 @@
+# Local-Phone configuration. Copy to config.yaml and edit.
+
+# LLM backend: "ollama" (local, on-device — default) or "api" (remote, opt-in).
+backend: ollama
+
+# Model to use. Must match a model you've pulled (setup/pull-model.sh).
+model: qwen2.5:7b
+
+# Local Ollama runtime.
+ollama:
+  host: http://localhost:11434
+
+# Remote OpenAI-compatible backend (only used when backend: api).
+api:
+  base_url: https://api.openai.com/v1
+  api_key_env: LLM_API_KEY   # read the key from this environment variable
+
+# Sampling / generation options passed through to the backend.
+options:
+  temperature: 0.4
+
+# Max seconds any single command may run before it's killed.
+command_timeout: 300

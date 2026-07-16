@@ -1,0 +1,5 @@
+# Runtime dependencies for the Local-Phone assistant.
+# Deliberately small — all install cleanly under Termux/arm64.
+requests>=2.31
+PyYAML>=6.0
+rich>=13.0

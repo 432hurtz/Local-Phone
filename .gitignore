@@ -1,0 +1,11 @@
+# Local config & engagement data — never commit real scopes or transcripts.
+config.yaml
+scope.yaml
+sessions/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
