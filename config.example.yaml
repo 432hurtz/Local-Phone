@@ -24,3 +24,17 @@ options:
 
 # Max seconds any single command may run before it's killed.
 command_timeout: 300
+
+# Research channel — web/OSINT lookups (the SEARCH: path and /search command).
+# This is the ONLY thing that reaches the public internet, and it is routed
+# through Tor for privacy. It fails closed: if Tor isn't up, searches are
+# refused rather than sent over your real connection. Scans and target
+# commands (RUN:) never use this — they stay on the direct interface.
+research:
+  enabled: true
+  tor_socks: socks5h://127.0.0.1:9050   # socks5h => DNS also resolved via Tor
+  search_url: "https://lite.duckduckgo.com/lite/?q={query}"
+  user_agent: "Mozilla/5.0 (X11; Linux x86_64; rv:115.0) Gecko/20100101 Firefox/115.0"
+  timeout: 45
+  max_chars: 6000        # cap on fetched text handed to the model
+  fail_closed: true      # never fetch if Tor is unreachable (keep this true)

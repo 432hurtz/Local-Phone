@@ -36,6 +36,7 @@ pkg install -y \
   net-tools \
   tcpdump \
   whois \
+  tor \
   || warn "Some packages failed to install; you can add them individually later."
 
 # Optional heavier tools — don't fail the whole install if a repo lacks them.
@@ -77,8 +78,13 @@ cat <<'EOF'
 Next:
   1) Start the model runtime (in a spare Termux session):  ollama serve &
   2) Pull a model:                                          bash setup/pull-model.sh
-  3) Edit your engagement scope:                            $EDITOR scope.yaml
-  4) Run the assistant:                                     python main.py
+  3) Start Tor for the research channel (spare session):    tor &
+  4) Edit your engagement scope:                            $EDITOR scope.yaml
+  5) Run the assistant:                                     python main.py
 
-Reminder: authorized targets only. Keep scope.yaml accurate.
+Notes:
+  - Tor powers only the research/SEARCH channel (web/OSINT lookups) for privacy.
+    Scans and target commands never go through it. If Tor isn't running,
+    searches fail closed (they are refused, never sent in the clear).
+  - Authorized targets only. Keep scope.yaml accurate.
 EOF

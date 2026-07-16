@@ -102,6 +102,26 @@ The agent:
 4. Runs it, logs it, and feeds the output back to the model so it can
    interpret results and plan the next step.
 
+### Research over Tor (privacy)
+
+Web/OSINT lookups use a separate channel that always goes through **Tor**, so
+your real IP is never exposed to search engines or the sites you look up. The
+model requests these with a `SEARCH:` line, and you can trigger one yourself:
+
+```
+you ▸ /search CVE-2024-3400 pan-os exploit details
+```
+
+Key properties:
+
+- **Tor-only, and fails closed.** If Tor isn't running, searches are *refused*,
+  never sent over your real connection. Start Tor with `tor &`.
+- **Research only.** This channel is for reading public information. It never
+  touches your engagement target — scans and target commands (`RUN:`) stay on
+  the direct interface and are scope-gated as usual.
+- Configure it under `research:` in `config.yaml` (proxy, search endpoint,
+  timeout, fetched-text cap).
+
 ### Handy flags
 
 | Flag              | Effect                                                       |

@@ -19,6 +19,7 @@ from rich.console import Console
 
 from assistant.agent import Agent
 from assistant.llm import build_backend, LLMError
+from assistant.research import Researcher
 from assistant.scope import Scope
 from assistant.tools import Executor
 
@@ -104,7 +105,12 @@ def main(argv: list[str]) -> int:
         scope=scope, console=console, log_path=log_path,
         auto=args.auto, timeout=config.get("command_timeout", 300),
     )
-    agent = Agent(backend, executor, console)
+    researcher = Researcher(config, console, log_path)
+    if researcher.enabled:
+        status = "up" if researcher.tor_up() else "DOWN (searches will fail-closed)"
+        console.print(f"[dim]tor research proxy: {researcher.socks} — {status}[/]")
+
+    agent = Agent(backend, executor, researcher, console)
     agent.repl()
     return 0
 

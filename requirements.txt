@@ -3,3 +3,4 @@
 requests>=2.31
 PyYAML>=6.0
 rich>=13.0
+PySocks>=1.7        # SOCKS5 support for requests -> Tor research channel

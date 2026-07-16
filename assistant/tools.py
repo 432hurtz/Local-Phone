@@ -20,8 +20,10 @@ _ALWAYS_CONFIRM = re.compile(
     r"\b(rm|mkfs|dd|shutdown|reboot|:\(\)\{|fork|passwd|useradd|userdel)\b"
 )
 
-# The single-line marker the model uses to request execution.
+# The single-line markers the model uses. RUN goes through the local/direct
+# executor (scope-gated); SEARCH goes through the Tor research channel.
 RUN_MARKER = re.compile(r"^\s*RUN:\s*(.+?)\s*$", re.MULTILINE)
+SEARCH_MARKER = re.compile(r"^\s*SEARCH:\s*(.+?)\s*$", re.MULTILINE)
 
 
 @dataclass
@@ -119,3 +121,8 @@ class Executor:
 def extract_commands(text: str) -> list[str]:
     """Return every `RUN:` command the model emitted, in order."""
     return [m.group(1).strip() for m in RUN_MARKER.finditer(text)]
+
+
+def extract_searches(text: str) -> list[str]:
+    """Return every `SEARCH:` research query/URL the model emitted, in order."""
+    return [m.group(1).strip() for m in SEARCH_MARKER.finditer(text)]

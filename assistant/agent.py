@@ -7,17 +7,20 @@ from rich.markdown import Markdown
 
 from .llm import LLMError
 from .prompts import SYSTEM_PROMPT
-from .tools import Executor, extract_commands
+from .research import Researcher
+from .tools import Executor, extract_commands, extract_searches
 
-# Cap on consecutive automatic RUN rounds before we hand control back to the
+# Cap on consecutive automatic tool rounds before we hand control back to the
 # operator — stops the model from looping on tool calls forever.
 MAX_TOOL_ROUNDS = 6
 
 
 class Agent:
-    def __init__(self, backend, executor: Executor, console: Console):
+    def __init__(self, backend, executor: Executor, researcher: Researcher,
+                 console: Console):
         self.backend = backend
         self.executor = executor
+        self.researcher = researcher
         self.console = console
         self.messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
@@ -31,6 +34,29 @@ class Agent:
         self.console.print()  # newline
         return "".join(parts)
 
+    def _run_searches(self, queries: list[str]) -> list[str]:
+        """Run each research query over Tor; return blocks for the model."""
+        blocks = []
+        for q in queries:
+            result = self.researcher.fetch(q)
+            status = "ok" if result.ok else "unavailable"
+            blocks.append(
+                f"SEARCH (via Tor) {q!r} [{status}]\n{result.text.strip()}"
+            )
+        return blocks
+
+    def _run_commands(self, commands: list[str]) -> list[str]:
+        """Run each command through the scope-gated executor."""
+        blocks = []
+        for cmd in commands:
+            result = self.executor.run(cmd)
+            state = "ran" if result.ran else f"NOT RUN ({result.reason})"
+            blocks.append(
+                f"$ {result.command}\n[{state}, exit={result.returncode}]\n"
+                f"{result.output.strip()}"
+            )
+        return blocks
+
     def send(self, user_input: str) -> None:
         """Handle one operator message, including any tool-call rounds."""
         self.messages.append({"role": "user", "content": user_input})
@@ -43,22 +69,16 @@ class Agent:
                 return
             self.messages.append({"role": "assistant", "content": reply})
 
+            searches = extract_searches(reply)
             commands = extract_commands(reply)
-            if not commands:
+            if not searches and not commands:
                 return  # plain answer / question — hand back to operator
 
-            # Run each proposed command and feed results back for the next round.
-            results_blob = []
-            for cmd in commands:
-                result = self.executor.run(cmd)
-                status = "ran" if result.ran else f"NOT RUN ({result.reason})"
-                results_blob.append(
-                    f"$ {result.command}\n[{status}, exit={result.returncode}]\n"
-                    f"{result.output.strip()}"
-                )
+            # Research (Tor) first, then local/target commands (direct).
+            blocks = self._run_searches(searches) + self._run_commands(commands)
             self.messages.append({
                 "role": "user",
-                "content": "Command results:\n\n" + "\n\n".join(results_blob)
+                "content": "Results:\n\n" + "\n\n".join(blocks)
                            + "\n\nInterpret these and continue, or ask me for input.",
             })
         else:
@@ -67,11 +87,30 @@ class Agent:
                 "Type 'continue' to let it keep going.[/]"
             )
 
+    def _operator_search(self, query: str) -> None:
+        """Operator-initiated Tor search: fetch, then let the model summarize."""
+        if not query.strip():
+            self.console.print("[yellow]usage: /search <query or url>[/]")
+            return
+        block = self._run_searches([query])[0]
+        self.messages.append({
+            "role": "user",
+            "content": f"I ran this research lookup over Tor:\n\n{block}\n\n"
+                       f"Summarize the relevant findings.",
+        })
+        try:
+            reply = self._generate()
+        except LLMError as e:
+            self.console.print(f"[bold red]LLM error:[/] {e}")
+            return
+        self.messages.append({"role": "assistant", "content": reply})
+
     def repl(self) -> None:
         self.console.print(
             Markdown(
                 "**Local-Phone** — on-device red-team assistant. "
-                "Authorized targets only. Type `exit` to quit."
+                "Authorized targets only. `/search <q>` researches over Tor. "
+                "Type `exit` to quit."
             )
         )
         while True:
@@ -85,4 +124,7 @@ class Agent:
             if user_input.lower() in {"exit", "quit", ":q"}:
                 self.console.print("[dim]bye[/]")
                 return
+            if user_input.startswith("/search "):
+                self._operator_search(user_input[len("/search "):])
+                continue
             self.send(user_input)
