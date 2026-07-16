@@ -76,11 +76,13 @@ cat <<'EOF'
 [+] Base install complete.
 
 Next:
-  1) Start the model runtime (in a spare Termux session):  ollama serve &
-  2) Pull a model:                                          bash setup/pull-model.sh
-  3) Start Tor for the research channel (spare session):    tor &
-  4) Edit your engagement scope:                            $EDITOR scope.yaml
-  5) Run the assistant:                                     python main.py
+  1) Pull a model:                    bash setup/pull-model.sh
+  2) Edit your engagement scope:      $EDITOR scope.yaml
+  3) Launch everything:               bash run.sh
+
+  run.sh starts Ollama + Tor if they aren't already up, waits for both, then
+  starts the assistant. To run the pieces by hand instead:
+     ollama serve &   |   tor &   |   python main.py
 
 Notes:
   - Tor powers only the research/SEARCH channel (web/OSINT lookups) for privacy.

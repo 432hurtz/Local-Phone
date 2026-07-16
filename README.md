@@ -79,8 +79,14 @@ leaving the device — good for field work, air-gapped labs, and privacy.
 5. Run it:
 
    ```bash
-   python main.py
+   bash run.sh            # starts Ollama + Tor if needed, then the assistant
    ```
+
+   `run.sh` is the one-command launcher: it brings up Ollama (model runtime)
+   and Tor (research channel) only if they aren't already running, waits until
+   each is ready, then starts the assistant. Arguments pass straight through
+   (`bash run.sh --auto`). To run pieces by hand instead, see
+   [Manual start](#manual-start) below.
 
 ---
 
@@ -121,6 +127,17 @@ Key properties:
   the direct interface and are scope-gated as usual.
 - Configure it under `research:` in `config.yaml` (proxy, search endpoint,
   timeout, fetched-text cap).
+
+### Manual start
+
+`run.sh` is just a convenience wrapper. To run the three pieces yourself, use a
+separate Termux session for each background service:
+
+```bash
+ollama serve            # session A — model runtime
+tor                     # session B — research channel (wait for "Bootstrapped 100%")
+python main.py          # session C — the assistant
+```
 
 ### Handy flags
 
