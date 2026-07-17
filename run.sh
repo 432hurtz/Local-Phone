@@ -23,6 +23,13 @@ mkdir -p "$LOGDIR"
 say()  { printf '\033[1;32m[+]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[!]\033[0m %s\n' "$*"; }
 
+# Termux ships Python as `python`, most distros as `python3`. Use whichever exists.
+PY="$(command -v python3 || command -v python || true)"
+if [ -z "$PY" ]; then
+  warn "No Python interpreter found. Install it with: pkg install -y python"
+  exit 1
+fi
+
 # --- parse args: first non-flag token is the model ----------------------------
 MODEL=""
 if [ "$#" -gt 0 ] && [ "${1#-}" = "$1" ]; then
@@ -34,7 +41,7 @@ fi
 ollama_up() { curl -fsS http://localhost:11434/api/tags >/dev/null 2>&1; }
 
 tor_up() {
-  python3 - <<'PY'
+  "$PY" - <<'PY'
 import socket, sys
 s = socket.socket(); s.settimeout(2)
 sys.exit(0 if s.connect_ex(("127.0.0.1", 9050)) == 0 else 1)
@@ -92,7 +99,7 @@ fi
 # --- launch the assistant -----------------------------------------------------
 say "Launching assistant…"
 if [ -n "$MODEL" ]; then
-  exec python3 main.py --model "$MODEL" "$@"
+  exec "$PY" main.py --model "$MODEL" "$@"
 else
-  exec python3 main.py "$@"
+  exec "$PY" main.py "$@"
 fi
