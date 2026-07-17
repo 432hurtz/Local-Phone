@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import time
+
 from rich.console import Console
 from rich.markdown import Markdown
 
 from .llm import LLMConnectionError, LLMError
+from .notify import Notifier
 from .prompts import SYSTEM_PROMPT
 from .research import Researcher
 from .tools import Executor, extract_commands, extract_searches
@@ -17,10 +20,11 @@ MAX_TOOL_ROUNDS = 6
 
 class Agent:
     def __init__(self, backend, executor: Executor, researcher: Researcher,
-                 console: Console):
+                 notifier: Notifier, console: Console):
         self.backend = backend
         self.executor = executor
         self.researcher = researcher
+        self.notifier = notifier
         self.console = console
         self.messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
@@ -108,7 +112,30 @@ class Agent:
         return blocks
 
     def send(self, user_input: str) -> None:
-        """Handle one operator message, including any tool-call rounds."""
+        """Handle one operator message, holding a wakelock and notifying when
+        a long turn finishes so the operator can walk away.
+        """
+        started = time.time()
+        self.notifier.wake_lock()
+        try:
+            self._converse(user_input)
+        finally:
+            self.notifier.wake_unlock()
+            elapsed = time.time() - started
+            if elapsed >= self.notifier.min_seconds:
+                self.notifier.notify(
+                    "Local-Phone",
+                    f"Reply ready ({int(elapsed)}s) — {self._last_reply_preview()}",
+                )
+
+    def _last_reply_preview(self) -> str:
+        for m in reversed(self.messages):
+            if m["role"] == "assistant" and m["content"].strip():
+                return m["content"].strip().replace("\n", " ")[:80]
+        return "done"
+
+    def _converse(self, user_input: str) -> None:
+        """The chat + tool-call rounds for one operator message."""
         self.messages.append({"role": "user", "content": user_input})
 
         for _ in range(MAX_TOOL_ROUNDS):

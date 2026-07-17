@@ -19,6 +19,7 @@ from rich.console import Console
 
 from assistant.agent import Agent
 from assistant.llm import build_backend, LLMError
+from assistant.notify import Notifier
 from assistant.research import Researcher
 from assistant.scope import Scope
 from assistant.tools import Executor
@@ -119,8 +120,17 @@ def main(argv: list[str]) -> int:
         status = "up" if researcher.tor_up() else "DOWN (searches will fail-closed)"
         console.print(f"[dim]tor research proxy: {researcher.socks} — {status}[/]")
 
-    agent = Agent(backend, executor, researcher, console)
-    agent.repl()
+    notifier = Notifier(config, console)
+    if notifier.enabled:
+        wl = "on" if notifier._have_wake else "unavailable"
+        nt = "on" if notifier._have_notify else "install termux-api for alerts"
+        console.print(f"[dim]wakelock: {wl} · notifications: {nt}[/]")
+
+    agent = Agent(backend, executor, researcher, notifier, console)
+    try:
+        agent.repl()
+    finally:
+        notifier.wake_unlock()  # never leave a wakelock held on exit
     return 0
 
 

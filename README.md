@@ -128,6 +128,21 @@ Key properties:
 - Configure it under `research:` in `config.yaml` (proxy, search endpoint,
   timeout, fetched-text cap).
 
+### Long tasks in the background (screen off) + notifications
+
+For long replies you can start it, lock the phone, and get pinged when it's
+done:
+
+- While a turn is working, the assistant holds a **CPU wakelock**
+  (`termux-wake-lock`) so generation keeps running with the screen off, then
+  releases it when idle so the phone sleeps normally.
+- When a turn takes longer than `notify.min_seconds` (default 20s), it posts an
+  **Android notification** (`termux-notification`) with a preview of the reply.
+
+Requirements: install the **Termux:API** app (F-Droid) and the `termux-api`
+package (the installer adds it). Without them, notifications are skipped and the
+assistant just runs normally. Configure under `notify:` in `config.yaml`.
+
 ### Manual start
 
 `run.sh` is just a convenience wrapper. To run the three pieces yourself, use a

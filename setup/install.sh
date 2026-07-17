@@ -37,6 +37,7 @@ pkg install -y \
   tcpdump \
   whois \
   tor \
+  termux-api \
   || warn "Some packages failed to install; you can add them individually later."
 
 # Optional heavier tools — don't fail the whole install if a repo lacks them.

@@ -38,3 +38,13 @@ research:
   timeout: 45
   max_chars: 6000        # cap on fetched text handed to the model
   fail_closed: true      # never fetch if Tor is unreachable (keep this true)
+
+# Background/long-run behavior (Termux/Android).
+# While a turn is working, hold a CPU wakelock so generation keeps running with
+# the screen off; release it when idle so the phone sleeps normally. Post an
+# Android notification when a turn takes longer than min_seconds, so you can
+# walk away and get pinged when it's done.
+notify:
+  enabled: true
+  wake_lock: true        # keep the CPU awake during a turn (termux-wake-lock)
+  min_seconds: 20        # only notify for turns longer than this many seconds
