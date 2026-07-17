@@ -24,15 +24,33 @@ class Agent:
         self.console = console
         self.messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-    def _generate(self) -> str:
-        """Stream one assistant turn, printing as it arrives; return full text."""
+    def _generate(self) -> tuple[str, bool]:
+        """Stream one assistant turn, printing as it arrives.
+
+        Returns (text_so_far, interrupted). Ctrl-C during streaming stops the
+        reply (and the server-side generation, by closing the connection) and
+        hands control back — it does not exit the program.
+        """
         self.console.print("[bold green]assistant[/] ", end="")
         parts: list[str] = []
-        for piece in self.backend.stream(self.messages):
-            self.console.print(piece, end="", highlight=False)
-            parts.append(piece)
-        self.console.print()  # newline
-        return "".join(parts)
+        interrupted = False
+        stream = self.backend.stream(self.messages)
+        try:
+            for piece in stream:
+                self.console.print(piece, end="", highlight=False)
+                parts.append(piece)
+        except KeyboardInterrupt:
+            interrupted = True
+            self.console.print("\n[yellow][stopped][/]")
+        finally:
+            # Closing the generator exits the `with requests.post(...)` block,
+            # which drops the connection and tells the model to stop generating.
+            close = getattr(stream, "close", None)
+            if close:
+                close()
+        if not interrupted:
+            self.console.print()  # newline
+        return "".join(parts), interrupted
 
     def _run_searches(self, queries: list[str]) -> list[str]:
         """Run each research query over Tor; return blocks for the model."""
@@ -63,11 +81,13 @@ class Agent:
 
         for _ in range(MAX_TOOL_ROUNDS):
             try:
-                reply = self._generate()
+                reply, interrupted = self._generate()
             except LLMError as e:
                 self.console.print(f"[bold red]LLM error:[/] {e}")
                 return
             self.messages.append({"role": "assistant", "content": reply})
+            if interrupted:
+                return  # operator stopped it; don't act on a partial reply
 
             searches = extract_searches(reply)
             commands = extract_commands(reply)
@@ -99,7 +119,7 @@ class Agent:
                        f"Summarize the relevant findings.",
         })
         try:
-            reply = self._generate()
+            reply, _ = self._generate()
         except LLMError as e:
             self.console.print(f"[bold red]LLM error:[/] {e}")
             return
@@ -110,13 +130,17 @@ class Agent:
             Markdown(
                 "**Local-Phone** — on-device red-team assistant. "
                 "Authorized targets only. `/search <q>` researches over Tor. "
-                "Type `exit` to quit."
+                "**Ctrl-C** stops the current reply; type `exit` (or Ctrl-D) to quit."
             )
         )
         while True:
             try:
                 user_input = self.console.input("\n[bold blue]you[/] ").strip()
-            except (EOFError, KeyboardInterrupt):
+            except KeyboardInterrupt:
+                # Ctrl-C at the prompt cancels the line, it does not quit.
+                self.console.print("[dim](ctrl-c — type 'exit' or Ctrl-D to quit)[/]")
+                continue
+            except EOFError:
                 self.console.print("\n[dim]bye[/]")
                 return
             if not user_input:
