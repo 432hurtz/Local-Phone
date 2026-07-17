@@ -68,12 +68,16 @@ def main(argv: list[str]) -> int:
                 "manual confirmation. Add your authorized targets.[/]"
             )
     else:
+        # No scope file: start in research/build mode rather than refusing to
+        # launch. Chat, tool creation, and Tor research all work; executing a
+        # command against a target stays blocked until targets are added to
+        # scope.yaml (an empty scope treats every target as out of scope).
+        scope = Scope()
         console.print(
-            f"[red]No scope file at {scope_path}. Copy scope.example.yaml to "
-            f"scope.yaml and add your authorized targets, or pass --no-scope "
-            f"for a lab.[/]"
+            "[yellow]No scope.yaml — research/build mode. Research and tool "
+            "creation work; executing against a target is blocked until you add "
+            "authorized targets to scope.yaml.[/]"
         )
-        return 1
 
     # --- llm backend ---------------------------------------------------------
     try:

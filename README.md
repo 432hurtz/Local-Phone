@@ -70,6 +70,11 @@ leaving the device — good for field work, air-gapped labs, and privacy.
    $EDITOR scope.yaml     # add the hosts/CIDRs you are authorized to test
    ```
 
+   Scope is optional to start. With no `scope.yaml` (or an empty one), the tool
+   runs in **research/build mode**: chat, tool creation, and Tor research all
+   work, but executing a command against a target is blocked until you add
+   authorized targets. Add them when you're ready to run against something.
+
 4. Run it — one command, with the model you want:
 
    ```bash
