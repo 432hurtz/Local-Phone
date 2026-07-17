@@ -87,11 +87,16 @@ def main(argv: list[str]) -> int:
         return 1
 
     if hasattr(backend, "available") and not backend.available():
-        console.print(
-            "[red]LLM backend is not reachable.[/] For the local backend, run "
-            "'ollama serve' and pull a model with setup/pull-model.sh."
-        )
-        return 1
+        # Try to bring a local backend up on our own before giving up.
+        starter = getattr(backend, "start_server", None)
+        if starter:
+            console.print("[yellow]Ollama not running — starting it…[/]")
+        if not (starter and starter()):
+            console.print(
+                "[red]LLM backend is not reachable.[/] For the local backend, run "
+                "'ollama serve' and pull a model with setup/pull-model.sh."
+            )
+            return 1
 
     console.print(f"[dim]model={backend.model}[/]")
 

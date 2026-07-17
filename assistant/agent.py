@@ -5,7 +5,7 @@ from __future__ import annotations
 from rich.console import Console
 from rich.markdown import Markdown
 
-from .llm import LLMError
+from .llm import LLMConnectionError, LLMError
 from .prompts import SYSTEM_PROMPT
 from .research import Researcher
 from .tools import Executor, extract_commands, extract_searches
@@ -34,23 +34,55 @@ class Agent:
         self.console.print("[bold green]assistant[/] ", end="")
         parts: list[str] = []
         interrupted = False
-        stream = self.backend.stream(self.messages)
-        try:
-            for piece in stream:
-                self.console.print(piece, end="", highlight=False)
-                parts.append(piece)
-        except KeyboardInterrupt:
-            interrupted = True
-            self.console.print("\n[yellow][stopped][/]")
-        finally:
-            # Closing the generator exits the `with requests.post(...)` block,
-            # which drops the connection and tells the model to stop generating.
-            close = getattr(stream, "close", None)
-            if close:
-                close()
+
+        # Try once; if the server is unreachable and nothing has streamed yet,
+        # auto-restart it and retry once before giving up.
+        for attempt in range(2):
+            stream = self.backend.stream(self.messages)
+            try:
+                for piece in stream:
+                    self.console.print(piece, end="", highlight=False)
+                    parts.append(piece)
+                break  # completed normally
+            except KeyboardInterrupt:
+                interrupted = True
+                self.console.print("\n[yellow][stopped][/]")
+                break
+            except LLMConnectionError:
+                if not parts and attempt == 0 and self._recover_backend():
+                    continue  # server restarted — retry the request
+                raise
+            finally:
+                # Closing the generator exits the `with requests.post(...)`
+                # block, dropping the connection so the model stops generating.
+                self._close(stream)
+
         if not interrupted:
             self.console.print()  # newline
         return "".join(parts), interrupted
+
+    @staticmethod
+    def _close(stream) -> None:
+        close = getattr(stream, "close", None)
+        if close:
+            close()
+
+    def _recover_backend(self) -> bool:
+        """Attempt to bring a dead local backend back up."""
+        start = getattr(self.backend, "start_server", None)
+        if not start:
+            return False
+        self.console.print(
+            "\n[yellow]Ollama isn't responding — restarting it and retrying…[/]"
+        )
+        if start():
+            self.console.print("[green]Ollama is back up.[/]")
+            return True
+        self.console.print(
+            "[red]Couldn't restart Ollama automatically. "
+            "Check sessions/ollama.log — it may have been killed for memory.[/]"
+        )
+        return False
 
     def _run_searches(self, queries: list[str]) -> list[str]:
         """Run each research query over Tor; return blocks for the model."""

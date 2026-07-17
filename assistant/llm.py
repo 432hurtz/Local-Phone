@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import time
 from typing import Iterator
 
 import requests
@@ -16,6 +18,10 @@ import requests
 
 class LLMError(RuntimeError):
     pass
+
+
+class LLMConnectionError(LLMError):
+    """Raised when the backend server can't be reached (e.g. Ollama is down)."""
 
 
 class OllamaBackend:
@@ -33,6 +39,31 @@ class OllamaBackend:
             return r.ok
         except requests.RequestException:
             return False
+
+    def start_server(self, wait: int = 30) -> bool:
+        """(Re)start a local `ollama serve` and wait for it to answer.
+
+        Used to auto-recover when the server process has been killed (common on
+        phones under memory pressure). Only meaningful for a local host; returns
+        True once the server responds, False if it can't be started.
+        """
+        if self.available():
+            return True
+        try:
+            # Detached so it survives this process and isn't hit by our Ctrl-C.
+            subprocess.Popen(
+                ["ollama", "serve"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        except (FileNotFoundError, OSError):
+            return False
+        for _ in range(wait):
+            if self.available():
+                return True
+            time.sleep(1)
+        return False
 
     def stream(self, messages: list[dict]) -> Iterator[str]:
         payload = {
@@ -63,7 +94,7 @@ class OllamaBackend:
                     if chunk.get("done"):
                         break
         except requests.RequestException as e:
-            raise LLMError(
+            raise LLMConnectionError(
                 f"Could not reach Ollama at {self.host}. Is 'ollama serve' running? ({e})"
             ) from e
 
